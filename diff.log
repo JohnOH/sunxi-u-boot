@@ -1,0 +1,411 @@
+diff --git a/arch/arm/cpu/armv7/sunxi/board.c b/arch/arm/cpu/armv7/sunxi/board.c
+index bfc1e89..c032222 100644
+--- a/arch/arm/cpu/armv7/sunxi/board.c
++++ b/arch/arm/cpu/armv7/sunxi/board.c
+@@ -26,6 +26,8 @@
+ 
+ #include <common.h>
+ #include <asm/io.h>
++#include <netdev.h>
++
+ #include <asm/arch/clock.h>
+ #include <asm/arch/timer.h>
+ #include <asm/arch/gpio.h>
+@@ -152,7 +154,18 @@ void reset_cpu(ulong addr)
+ 	sunxi_nand_flush_opts();
+ 	sunxi_reset();
+ }
++#if defined(CONFIG_SUNXI_EMAC)
++/*
++ * Initializes on-chip ethernet controllers.
++ * to override, implement board_eth_init()
++ */
++int cpu_eth_init(bd_t *bis)
++{
++    sunxi_emac_initialize(bis);
+ 
++    return 0;
++}
++#endif
+ #ifndef CONFIG_SYS_DCACHE_OFF
+ void enable_caches(void)
+ {
+diff --git a/arch/arm/include/asm/arch-sunxi/clock.h b/arch/arm/include/asm/arch-sunxi/clock.h
+index ccd7402..2511451 100644
+--- a/arch/arm/include/asm/arch-sunxi/clock.h
++++ b/arch/arm/include/asm/arch-sunxi/clock.h
+@@ -24,9 +24,84 @@
+  
+ #ifndef _SUNXI_CLOCK_H
+ #define _SUNXI_CLOCK_H
+-
+ /* clock control module regs definition */
+ 
++struct sunxi_ccm_reg {
++    u32 pll1_cfg;       /* 0x00 pll1 control */
++    u32 pll1_tun;       /* 0x04 pll1 tuning */
++    u32 pll2_cfg;       /* 0x08 pll2 control */
++    u32 pll2_tun;       /* 0x0c pll2 tuning */
++    u32 pll3_cfg;       /* 0x10 pll3 control */
++    u8 res0[0x4];
++    u32 pll4_cfg;       /* 0x18 pll4 control */
++    u8 res1[0x4];
++    u32 pll5_cfg;       /* 0x20 pll5 control */
++    u32 pll5_tun;       /* 0x24 pll5 tuning */
++    u32 pll6_cfg;       /* 0x28 pll6 control */
++    u32 pll6_tun;       /* 0x2c pll6 tuning */
++    u32 pll7_cfg;       /* 0x30 pll7 control */
++    u32 pll1_tun2;      /* 0x34 pll5 tuning2 */
++    u8 res2[0x4];
++    u32 pll5_tun2;      /* 0x3c pll5 tuning2 */
++    u8 res3[0xc];
++    u32 pll_lock_dbg;   /* 0x4c pll lock time debug */
++    u32 osc24m_cfg;     /* 0x50 osc24m control */
++    u32 cpu_ahb_apb0_cfg;   /* 0x54 cpu,ahb and apb0 divide ratio */
++    u32 apb1_clk_div_cfg;   /* 0x58 apb1 clock dividor */
++    u32 axi_gate;       /* 0x5c axi module clock gating */
++    u32 ahb_gate0;      /* 0x60 ahb module clock gating 0 */
++    u32 ahb_gate1;      /* 0x64 ahb module clock gating 1 */
++    u32 apb0_gate;      /* 0x68 apb0 module clock gating */
++    u32 apb1_gate;      /* 0x6c apb1 module clock gating */
++    u8 res4[0x10];
++    u32 nand_sclk_cfg;  /* 0x80 nand sub clock control */
++    u32 ms_sclk_cfg;    /* 0x84 memory stick sub clock control */
++    u32 sd0_clk_cfg;    /* 0x88 sd0 clock control */
++    u32 sd1_clk_cfg;    /* 0x8c sd1 clock control */
++    u32 sd2_clk_cfg;    /* 0x90 sd2 clock control */
++    u32 sd3_clk_cfg;    /* 0x94 sd3 clock control */
++    u32 ts_clk_cfg;     /* 0x98 transport stream clock control */
++    u32 ss_clk_cfg;     /* 0x9c */
++    u32 spi0_clk_cfg;   /* 0xa0 */
++    u32 spi1_clk_cfg;   /* 0xa4 */
++    u32 spi2_clk_cfg;   /* 0xa8 */
++    u32 pata_clk_cfg;   /* 0xac */
++    u32 ir0_clk_cfg;    /* 0xb0 */
++    u32 ir1_clk_cfg;    /* 0xb4 */
++    u32 iis_clk_cfg;    /* 0xb8 */
++    u32 ac97_clk_cfg;   /* 0xbc */
++    u32 spdif_clk_cfg;  /* 0xc0 */
++    u32 keypad_clk_cfg; /* 0xc4 */
++    u32 sata_clk_cfg;   /* 0xc8 */
++    u32 usb_clk_cfg;    /* 0xcc */
++    u32 gps_clk_cfg;    /* 0xd0 */
++    u32 dram_clk_cfg;   /* 0x100 */
++    u32 be0_clk_cfg;    /* 0x104 */
++    u32 be1_clk_cfg;    /* 0x108 */
++    u32 fe0_clk_cfg;    /* 0x10c */
++    u32 spi3_clk_cfg;   /* 0xd4 */
++    u8 res5[0x28];
++    u32 fe1_clk_cfg;    /* 0x110 */
++    u32 mp_clk_cfg;     /* 0x114 */
++    u32 lcd0_ch0_clk_cfg;   /* 0x118 */
++    u32 lcd1_ch0_clk_cfg;   /* 0x11c */
++    u32 csi_isp_clk_cfg;    /* 0x120 */
++    u8 res6[0x4];
++    u32 tvd_clk_reg;    /* 0x128 */
++    u32 lcd0_ch1_clk_cfg;   /* 0x12c */
++    u32 lcd1_ch1_clk_cfg;   /* 0x130 */
++    u32 csi0_clk_cfg;   /* 0x134 */
++    u32 csi1_clk_cfg;   /* 0x138 */
++    u32 ve_clk_cfg;     /* 0x13c */
++    u32 audio_codec_clk_cfg;    /* 0x140 */
++    u32 avs_clk_cfg;    /* 0x144 */
++    u32 ace_clk_cfg;    /* 0x148 */
++    u32 lvds_clk_cfg;   /* 0x14c */
++    u32 hdmi_clk_cfg;   /* 0x150 */
++    u32 mali_clk_cfg;   /* 0x154 */
++    u8 res7[0x4];
++    u32 mbus_clk_cfg;   /* 0x15c */
++};
+ #define SUNXI_CCM_PLL1_CFG			(SUNXI_CCM_BASE + 0x00)		/* PLL1 control */
+ #define SUNXI_CCM_PLL1_TUN			(SUNXI_CCM_BASE + 0x04)		/* PLL1 tuning */
+ #define SUNXI_CCM_PLL2_CFG			(SUNXI_CCM_BASE + 0x08)
+@@ -92,6 +167,33 @@
+ #define NAND_CLK_DIV_N			0
+ #define NAND_CLK_DIV_M			0
+ 
++/* ahb clock gate bit offset */
++#define AHB_GATE_OFFSET_GPS     26
++#define AHB_GATE_OFFSET_SATA        25
++#define AHB_GATE_OFFSET_PATA        24
++#define AHB_GATE_OFFSET_SPI3        23
++#define AHB_GATE_OFFSET_SPI2        22
++#define AHB_GATE_OFFSET_SPI1        21
++#define AHB_GATE_OFFSET_SPI0        20
++#define AHB_GATE_OFFSET_TS0     18
++#define AHB_GATE_OFFSET_EMAC        17
++#define AHB_GATE_OFFSET_ACE     16
++#define AHB_GATE_OFFSET_DLL     15
++#define AHB_GATE_OFFSET_SDRAM       14
++#define AHB_GATE_OFFSET_NAND        13
++#define AHB_GATE_OFFSET_MS      12
++#define AHB_GATE_OFFSET_MMC3        11
++#define AHB_GATE_OFFSET_MMC2        10
++#define AHB_GATE_OFFSET_MMC1        9
++#define AHB_GATE_OFFSET_MMC0        8
++#define AHB_GATE_OFFSET_BIST        7
++#define AHB_GATE_OFFSET_DMA     6
++#define AHB_GATE_OFFSET_SS      5
++#define AHB_GATE_OFFSET_USB_OHCI1   4
++#define AHB_GATE_OFFSET_USB_EHCI1   3
++#define AHB_GATE_OFFSET_USB_OHCI0   2
++#define AHB_GATE_OFFSET_USB_EHCI0   1
++#define AHB_GATE_OFFSET_USB     0
+ 
+ 
+ 
+diff --git a/boards.cfg b/boards.cfg
+index 6ff6668..402540e 100644
+--- a/boards.cfg
++++ b/boards.cfg
+@@ -156,7 +156,7 @@ integratorap_cm946es         arm         arm946es    integrator          armltd
+ integratorcp_cm946es         arm         arm946es    integrator          armltd         -               integratorcp
+ ca9x4_ct_vxp                 arm         armv7       vexpress            armltd
+ efikamx                      arm         armv7       efikamx             -              mx5		efikamx:IMX_CONFIG=board/efikamx/imximage.cfg
+-mx51evk                      arm         armv7       mx51evk             freescale      mx5		mx51evk:IMX_CONFIG=board/freescale/mx51evk/imximage.cfg
++mx51evk                      arm         armv7       mx51evk             freescale      mx5		mx5evk:IMX_CONFIG=board/freescale/mx51evk/imximage.cfg
+ mx53ard                      arm         armv7       mx53ard             freescale      mx5		mx53ard:IMX_CONFIG=board/freescale/mx53ard/imximage_dd3.cfg
+ mx53evk                      arm         armv7       mx53evk             freescale      mx5		mx53evk:IMX_CONFIG=board/freescale/mx53evk/imximage.cfg
+ mx53loco                     arm         armv7       mx53loco            freescale      mx5		mx53loco:IMX_CONFIG=board/freescale/mx53loco/imximage.cfg
+@@ -186,7 +186,7 @@ smdkv310		     arm	 armv7	     smdkv310		 samsung	s5pc2xx
+ harmony                      arm         armv7       harmony             nvidia         tegra2
+ seaboard                     arm         armv7       seaboard            nvidia         tegra2
+ u8500_href                   arm         armv7       u8500               st-ericsson    u8500
+-sun4i                        arm         armv7       a10-evb             allwinner      sunxi
++sun4i                        arm         armv7       pcDuino             allwinner      sunxi		sun4i:SUNXI_EMAC
+ sun4i_sd                     arm         armv7       a10-evb             allwinner      sunxi       sun4i:SD_UART
+ sun5i_a12                    arm         armv7       a12-evb             allwinner      sunxi
+ sun5i_a13                    arm         armv7       a13-evb             allwinner      sunxi
+diff --git a/drivers/net/Makefile b/drivers/net/Makefile
+index 819b197..c9641b2 100644
+--- a/drivers/net/Makefile
++++ b/drivers/net/Makefile
+@@ -26,6 +26,7 @@ include $(TOPDIR)/config.mk
+ LIB	:= $(obj)libnet.o
+ 
+ COBJS-$(CONFIG_DRIVER_3C589) += 3c589.o
++COBJS-$(CONFIG_SUNXI_EMAC) += sunxi_emac.o
+ COBJS-$(CONFIG_PPC4xx_EMAC) += 4xx_enet.o
+ COBJS-$(CONFIG_ALTERA_TSE) += altera_tse.o
+ COBJS-$(CONFIG_DRIVER_AT91EMAC) += at91_emac.o
+@@ -101,4 +102,4 @@ include $(SRCTREE)/rules.mk
+ 
+ sinclude $(obj).depend
+ 
+-#########################################################################
++########################################################################
+diff --git a/include/configs/sun4i.h b/include/configs/sun4i.h
+index fcf3997..10fce9b 100644
+--- a/include/configs/sun4i.h
++++ b/include/configs/sun4i.h
+@@ -196,4 +196,36 @@
+ 
+ #define CONFIG_CMD_LOADB
+ 
++/* Ethernet support */
++#ifdef CONFIG_SUNXI_EMAC
++#define CONFIG_MII          /* MII PHY management       */
++#define CONFIG_CMD_MII
++#define CONFIG_CMD_NET
++#endif
++#define CONFIG_NET_MULTI
++#ifdef CONFIG_CMD_NET
++#define CONFIG_CMD_PING
++#define CONFIG_CMD_DHCP
++#define CONFIG_CMD_NFS
++#define CONFIG_CMD_SNTP
++#define CONFIG_TIMESTAMP        /* Needed by SNTP */
++#define CONFIG_CMD_DNS
++#define CONFIG_NETCONSOLE
++#define CONFIG_BOOTP_SUBNETMASK
++#define CONFIG_BOOTP_GATEWAY
++#define CONFIG_BOOTP_HOSTNAME
++#define CONFIG_BOOTP_NISDOMAIN
++#define CONFIG_BOOTP_BOOTPATH
++#define CONFIG_BOOTP_BOOTFILESIZE
++#define CONFIG_BOOTP_DNS
++#define CONFIG_BOOTP_DNS2
++#define CONFIG_BOOTP_SEND_HOSTNAME
++#define CONFIG_BOOTP_NTPSERVER
++#define CONFIG_BOOTP_TIMEOFFSET
++#define CONFIG_BOOTP_MAY_FAIL
++#define CONFIG_BOOTP_SERVERIP
++#define CONFIG_BOOTP_DHCP_REQUEST_DELAY     50000
++#define CONFIG_CMD_ELF
++#endif
++
+ #endif /* __CONFIG_H */
+diff --git a/include/netdev.h b/include/netdev.h
+index 96c7b9b..16ee4ce 100644
+--- a/include/netdev.h
++++ b/include/netdev.h
+@@ -2,23 +2,7 @@
+  * (C) Copyright 2008
+  * Benjamin Warren, biggerbadderben@gmail.com
+  *
+- * See file CREDITS for list of people who contributed to this
+- * project.
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License as
+- * published by the Free Software Foundation; either version 2 of
+- * the License, or (at your option) any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+- * MA 02111-1307 USA
++ * SPDX-License-Identifier:	GPL-2.0+
+  */
+ 
+ /*
+@@ -42,15 +26,17 @@ int cpu_eth_init(bd_t *bis);
+ 
+ /* Driver initialization prototypes */
+ int altera_tse_initialize(u8 dev_num, int mac_base,
+-			  int sgdma_rx_base, int sgdma_tx_base);
++			  int sgdma_rx_base, int sgdma_tx_base,
++			  u32 sgdma_desc_base, u32 sgdma_desc_size);
+ int at91emac_register(bd_t *bis, unsigned long iobase);
+ int au1x00_enet_initialize(bd_t*);
+ int ax88180_initialize(bd_t *bis);
+ int bfin_EMAC_initialize(bd_t *bis);
++int calxedaxgmac_initialize(u32 id, ulong base_addr);
+ int cs8900_initialize(u8 dev_num, int base_addr);
+ int davinci_emac_initialize(void);
+ int dc21x4x_initialize(bd_t *bis);
+-int designware_initialize(u32 id, ulong base_addr, u32 phy_addr);
++int designware_initialize(u32 id, ulong base_addr, u32 phy_addr, u32 interface);
+ int dm9000_initialize(bd_t *bis);
+ int dnet_eth_initialize(int id, void *regs, unsigned int phy_addr);
+ int e1000_initialize(bd_t *bis);
+@@ -61,24 +47,26 @@ int ep93xx_eth_initialize(u8 dev_num, int base_addr);
+ int eth_3com_initialize (bd_t * bis);
+ int ethoc_initialize(u8 dev_num, int base_addr);
+ int fec_initialize (bd_t *bis);
+-int fecmxc_initialize (bd_t *bis);
+ int fecmxc_initialize(bd_t *bis);
++int fecmxc_initialize_multi(bd_t *bis, int dev_id, int phy_id, uint32_t addr);
+ int ftgmac100_initialize(bd_t *bits);
+ int ftmac100_initialize(bd_t *bits);
++int ftmac110_initialize(bd_t *bits);
+ int greth_initialize(bd_t *bis);
+ void gt6426x_eth_initialize(bd_t *bis);
+ int inca_switch_initialize(bd_t *bis);
+ int ks8695_eth_initialize(void);
++int ks8851_mll_initialize(u8 dev_num, int base_addr);
+ int lan91c96_initialize(u8 dev_num, int base_addr);
+ int macb_eth_initialize(int id, void *regs, unsigned int phy_addr);
+ int mcdmafec_initialize(bd_t *bis);
+ int mcffec_initialize(bd_t *bis);
+ int mpc512x_fec_initialize(bd_t *bis);
+ int mpc5xxx_fec_initialize(bd_t *bis);
+-int mpc8220_fec_initialize(bd_t *bis);
+ int mpc82xx_scc_enet_initialize(bd_t *bis);
+ int mvgbe_initialize(bd_t *bis);
+ int natsemi_initialize(bd_t *bis);
++int ne2k_register(void);
+ int npe_initialize(bd_t *bis);
+ int ns8382x_initialize(bd_t *bis);
+ int pcnet_initialize(bd_t *bis);
+@@ -91,10 +79,27 @@ int sh_eth_initialize(bd_t *bis);
+ int skge_initialize(bd_t *bis);
+ int smc91111_initialize(u8 dev_num, int base_addr);
+ int smc911x_initialize(u8 dev_num, int base_addr);
++int sunxi_emac_initialize(bd_t *bis);
+ int tsi108_eth_initialize(bd_t *bis);
+ int uec_standard_init(bd_t *bis);
+ int uli526x_initialize(bd_t *bis);
+-int xilinx_emaclite_initialize (bd_t *bis, int base_addr);
++int armada100_fec_register(unsigned long base_addr);
++int xilinx_axiemac_initialize(bd_t *bis, unsigned long base_addr,
++							unsigned long dma_addr);
++int xilinx_emaclite_initialize(bd_t *bis, unsigned long base_addr,
++							int txpp, int rxpp);
++int xilinx_ll_temac_eth_init(bd_t *bis, unsigned long base_addr, int flags,
++						unsigned long ctrl_addr);
++int zynq_gem_initialize(bd_t *bis, int base_addr, int phy_addr, u32 emio);
++/*
++ * As long as the Xilinx xps_ll_temac ethernet driver has not its own interface
++ * exported by a public hader file, we need a global definition at this point.
++ */
++#if defined(CONFIG_XILINX_LL_TEMAC)
++#define XILINX_LL_TEMAC_M_FIFO		0	/* use FIFO Ctrl */
++#define XILINX_LL_TEMAC_M_SDMA_PLB	(1 << 0)/* use SDMA Ctrl via PLB */
++#define XILINX_LL_TEMAC_M_SDMA_DCR	(1 << 1)/* use SDMA Ctrl via DCR */
++#endif
+ 
+ /* Boards with PCI network controllers can call this from their board_eth_init()
+  * function to initialize whatever's on board.
+@@ -144,10 +149,9 @@ static inline int pci_eth_init(bd_t *bis)
+  * the stuct and enums here are used to specify switch configuration params
+  */
+ #if defined(CONFIG_MV88E61XX_SWITCH)
+-enum mv88e61xx_cfg_vlan {
+-	MV88E61XX_VLANCFG_DEFAULT,
+-	MV88E61XX_VLANCFG_ROUTER
+-};
++
++/* constants for any 88E61xx switch */
++#define MV88E61XX_MAX_PORTS_NUM	6
+ 
+ enum mv88e61xx_cfg_mdip {
+ 	MV88E61XX_MDIP_NOCHANGE,
+@@ -173,7 +177,7 @@ enum mv88e61xx_cfg_prtstt {
+ 
+ struct mv88e61xx_config {
+ 	char *name;
+-	enum mv88e61xx_cfg_vlan vlancfg;
++	u8 vlancfg[MV88E61XX_MAX_PORTS_NUM];
+ 	enum mv88e61xx_cfg_rgmiid rgmii_delay;
+ 	enum mv88e61xx_cfg_prtstt portstate;
+ 	enum mv88e61xx_cfg_ledinit led_init;
+@@ -182,7 +186,31 @@ struct mv88e61xx_config {
+ 	u8 cpuport;
+ };
+ 
++/*
++ * Common mappings for Internal VLANs
++ * These mappings consider that all ports are useable; the driver
++ * will mask inexistent/unused ports.
++ */
++
++/* Switch mode : routes any port to any port */
++#define MV88E61XX_VLANCFG_SWITCH { 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F }
++
++/* Router mode: routes only CPU port 5 to/from non-CPU ports 0-4 */
++#define MV88E61XX_VLANCFG_ROUTER { 0x20, 0x20, 0x20, 0x20, 0x20, 0x1F }
++
+ int mv88e61xx_switch_initialize(struct mv88e61xx_config *swconfig);
+ #endif /* CONFIG_MV88E61XX_SWITCH */
+ 
++struct mii_dev *fec_get_miibus(uint32_t base_addr, int dev_id);
++#ifdef CONFIG_PHYLIB
++struct phy_device;
++int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
++		struct mii_dev *bus, struct phy_device *phydev);
++#else
++/*
++ * Allow FEC to fine-tune MII configuration on boards which require this.
++ */
++int fecmxc_register_mii_postcall(struct eth_device *dev, int (*cb)(int));
++#endif
++
+ #endif /* _NETDEV_H_ */
+diff --git a/net/eth.c b/net/eth.c
+index 5911b1c..9b3696f 100644
+--- a/net/eth.c
++++ b/net/eth.c
+@@ -370,7 +370,6 @@ int eth_init(bd_t *bis)
+ {
+ 	int eth_number;
+ 	struct eth_device *old_current, *dev;
+-
+ 	if (!eth_current) {
+ 		puts ("No ethernet found.\n");
+ 		return -1;

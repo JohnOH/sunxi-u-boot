@@ -370,7 +370,6 @@ int eth_init(bd_t *bis)
 {
 	int eth_number;
 	struct eth_device *old_current, *dev;
-
 	if (!eth_current) {
 		puts ("No ethernet found.\n");
 		return -1;

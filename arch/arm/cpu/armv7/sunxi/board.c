@@ -26,6 +26,8 @@
 
 #include <common.h>
 #include <asm/io.h>
+#include <netdev.h>
+
 #include <asm/arch/clock.h>
 #include <asm/arch/timer.h>
 #include <asm/arch/gpio.h>
@@ -152,7 +154,18 @@ void reset_cpu(ulong addr)
 	sunxi_nand_flush_opts();
 	sunxi_reset();
 }
+#if defined(CONFIG_SUNXI_EMAC)
+/*
+ * Initializes on-chip ethernet controllers.
+ * to override, implement board_eth_init()
+ */
+int cpu_eth_init(bd_t *bis)
+{
+    sunxi_emac_initialize(bis);
 
+    return 0;
+}
+#endif
 #ifndef CONFIG_SYS_DCACHE_OFF
 void enable_caches(void)
 {

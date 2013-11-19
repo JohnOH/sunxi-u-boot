@@ -26,6 +26,7 @@ include $(TOPDIR)/config.mk
 LIB	:= $(obj)libnet.o
 
 COBJS-$(CONFIG_DRIVER_3C589) += 3c589.o
+COBJS-$(CONFIG_SUNXI_EMAC) += sunxi_emac.o
 COBJS-$(CONFIG_PPC4xx_EMAC) += 4xx_enet.o
 COBJS-$(CONFIG_ALTERA_TSE) += altera_tse.o
 COBJS-$(CONFIG_DRIVER_AT91EMAC) += at91_emac.o
@@ -101,4 +102,4 @@ include $(SRCTREE)/rules.mk
 
 sinclude $(obj).depend
 
-#########################################################################
+########################################################################
